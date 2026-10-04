@@ -45,3 +45,51 @@ Desde la terminal, en la raíz del proyecto, ejecutar en este orden:
 Los scripts generan los archivos derivados en `data/processed`.
 Si se utilizan otros datos, deben revisarse nuevamente los conteos,
 las fechas y la consistencia de las referencias.
+
+## Indicadores de entrega
+
+Los indicadores se calculan por referencia de envío y por el nombre
+de proveedor registrado en la base.
+
+| Indicador | Definición |
+| --- | --- |
+| Envíos evaluables | Referencias con proveedor, país y fechas completos y consistentes. |
+| Envíos puntuales | Entregas realizadas en la fecha programada o antes. |
+| Envíos tardíos | Entregas realizadas después de la fecha programada. |
+| Puntualidad (%) | Envíos puntuales / envíos evaluables × 100. |
+| Retraso promedio general | Promedio de días de retraso entre todos los envíos evaluables; las entregas puntuales aportan cero. |
+| Retraso promedio de tardíos | Promedio de días de retraso únicamente entre las entregas tardías. Queda vacío si no hubo entregas tardías. |
+
+### Resultados generales
+
+- Envíos evaluables: 7,020.
+- Envíos puntuales: 6,222.
+- Envíos tardíos: 798.
+- Puntualidad global: 88.63%.
+- Referencias pendientes de revisión: 10, excluidas del cálculo de puntualidad.
+
+La puntualidad global se calcula sobre todos los envíos evaluables;
+no es el promedio simple de los porcentajes de los proveedores.
+
+### Interpretación y limitaciones
+
+Los resultados permiten identificar entregas que requieren seguimiento
+y describir la frecuencia y magnitud de los retrasos históricos.
+
+La comparación entre proveedores debe considerar el número de envíos,
+el periodo, el país, los productos y las condiciones logísticas.
+Los nombres de proveedor todavía no se han normalizado.
+
+Un retraso observado no demuestra responsabilidad del proveedor.
+Estos indicadores tampoco miden entregas completas, calidad del producto
+ni ahorros económicos.
+
+### Reproducir los indicadores
+
+Después de preparar los datos, ejecutar:
+
+    python src/calcular_indicadores.py
+
+El resultado se guarda en:
+
+    data/processed/indicadores_proveedores.csv
