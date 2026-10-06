@@ -93,8 +93,7 @@ Después de preparar los datos, ejecutar:
 El resultado se guarda en:
 
     data/processed/indicadores_proveedores.csv
-
-    ## Panel interactivo
+## Panel interactivo
 
 El panel permite explorar la puntualidad de las entregas por proveedor, país de destino y año de entrega. Los indicadores se recalculan según los filtros seleccionados.
 
