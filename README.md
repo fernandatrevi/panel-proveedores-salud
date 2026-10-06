@@ -93,3 +93,35 @@ Después de preparar los datos, ejecutar:
 El resultado se guarda en:
 
     data/processed/indicadores_proveedores.csv
+
+    ## Panel interactivo
+
+El panel permite explorar la puntualidad de las entregas por proveedor, país de destino y año de entrega. Los indicadores se recalculan según los filtros seleccionados.
+
+Incluye:
+- Total de envíos seleccionados y evaluables.
+- Número de envíos tardíos y porcentaje de puntualidad.
+- Registros pendientes de revisión.
+- Gráfico y tabla de indicadores por proveedor.
+- Descarga de los resultados filtrados en CSV.
+
+### Cómo ejecutarlo
+
+Desde la raíz del repositorio, con el entorno virtual `.venv` creado:
+
+```bash
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python src/preparar_datos.py
+.venv/bin/python -m streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+```
+
+En Codespaces, abrir el puerto 8501 desde la pestaña Ports.
+Dejar el proceso activo mientras se utiliza el panel.
+
+### Interpretación
+
+Una selección vacía incluye todos los valores. El filtro de año utiliza la fecha real de entrega.
+
+La puntualidad se calcula únicamente sobre los envíos evaluables. Los registros con fechas programadas conflictivas quedan pendientes de revisión.
+
+Los datos corresponden al periodo histórico 2006–2015. Las diferencias de puntualidad ayudan a identificar casos para investigar, pero no demuestran por sí solas responsabilidad del proveedor ni ahorros económicos.
