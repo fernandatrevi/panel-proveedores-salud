@@ -49,6 +49,11 @@ anios = st.sidebar.multiselect(
 
 filtrados = envios.copy()
 
+solo_tardios = st.sidebar.checkbox(
+    "Mostrar únicamente envíos tardíos", value=False,
+    help="Se incluyen solo envíos evaluables entregados después de la fecha programada.",
+)
+
 if proveedores:
     filtrados = filtrados[filtrados["proveedor"].isin(proveedores)]
 if paises:
@@ -56,6 +61,12 @@ if paises:
 if anios:
     filtrados = filtrados[
         filtrados["fecha_entrega"].dt.year.isin(anios)
+    ]
+
+if solo_tardios:
+    filtrados = filtrados.loc[
+        filtrados["evaluable"].fillna(False)
+        & filtrados["puntual"].eq(False).fillna(False)
     ]
 
 if filtrados.empty:
