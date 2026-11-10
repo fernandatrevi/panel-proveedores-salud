@@ -4,164 +4,190 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(
-    page_title="Panel de proveedores de salud",
+    page_title="Healthcare Supplier Performance Dashboard",
     page_icon="📦",
     layout="wide",
 )
 
-RAIZ = Path(__file__).resolve().parent
-archivo = RAIZ / "data" / "processed" / "envios.csv"
+ROOT = Path(__file__).resolve().parent
+data_file = ROOT / "data" / "processed" / "envios.csv"
 
-st.title("📦 Panel de desempeño de proveedores")
-st.caption(
-    "Análisis histórico de entregas de productos de salud, 2006–2015."
-)
+st.title("📦 Healthcare Supplier Performance Dashboard")
+st.caption("Historical healthcare product delivery analysis, 2006–2015.")
 
-if not archivo.exists():
-    st.error("Falta data/processed/envios.csv. Ejecuta la preparación de datos.")
+if not data_file.exists():
+    st.error("Missing data/processed/envios.csv. Run the data preparation scripts first.")
     st.stop()
 
-envios = pd.read_csv(
-    archivo,
+shipments = pd.read_csv(
+    data_file,
     dtype={"evaluable": "boolean", "puntual": "boolean"},
 )
-envios["fecha_entrega"] = pd.to_datetime(
-    envios["fecha_entrega"], errors="coerce"
+shipments["fecha_entrega"] = pd.to_datetime(
+    shipments["fecha_entrega"], errors="coerce"
 )
 
-st.sidebar.header("Filtros")
-st.sidebar.caption("Deja una selección vacía para incluir todos.")
+# The source CSV keeps its original Spanish column names for compatibility
+# with the existing data-processing scripts.
+DISPLAY_COLUMNS = {
+    "referencia_envio": "Shipment reference",
+    "proveedor": "Supplier",
+    "pais": "Destination country",
+    "fecha_programada": "Scheduled delivery date",
+    "fecha_entrega": "Actual delivery date",
+    "numero_lineas": "Product line items",
+    "evaluable": "Eligible for evaluation",
+    "diferencia_dias": "Delivery difference (days)",
+    "puntual": "On time",
+    "retraso_dias": "Delay (days)",
+}
+KPI_COLUMNS = {
+    "envios_evaluables": "Eligible shipments",
+    "envios_puntuales": "On-time shipments",
+    "envios_tardios": "Late shipments",
+    "puntualidad_pct": "On-time delivery rate (%)",
+    "retraso_promedio_tardios_dias": "Average delay of late shipments (days)",
+}
 
-proveedores = st.sidebar.multiselect(
-    "Proveedor",
-    sorted(envios["proveedor"].dropna().unique()),
+st.sidebar.header("Filters")
+st.sidebar.caption("Leave a selection empty to include all values.")
+
+suppliers = st.sidebar.multiselect(
+    "Supplier",
+    sorted(shipments["proveedor"].dropna().unique()),
+    placeholder="Select suppliers",
 )
-paises = st.sidebar.multiselect(
-    "País de destino",
-    sorted(envios["pais"].dropna().unique()),
+countries = st.sidebar.multiselect(
+    "Destination country",
+    sorted(shipments["pais"].dropna().unique()),
+    placeholder="Select countries",
 )
-anios = st.sidebar.multiselect(
-    "Año de entrega",
-    sorted(
-        envios["fecha_entrega"].dt.year.dropna().astype(int).unique()
-    ),
+years = st.sidebar.multiselect(
+    "Delivery year",
+    sorted(shipments["fecha_entrega"].dt.year.dropna().astype(int).unique()),
+    placeholder="Select years",
 )
 
-filtrados = envios.copy()
+filtered = shipments.copy()
 
-solo_tardios = st.sidebar.checkbox(
-    "Mostrar únicamente envíos tardíos", value=False,
-    help="Se incluyen solo envíos evaluables entregados después de la fecha programada.",
+late_only = st.sidebar.checkbox(
+    "Show late shipments only",
+    value=False,
+    help="Includes only eligible shipments received after their scheduled date.",
 )
 
-if proveedores:
-    filtrados = filtrados[filtrados["proveedor"].isin(proveedores)]
-if paises:
-    filtrados = filtrados[filtrados["pais"].isin(paises)]
-if anios:
-    filtrados = filtrados[
-        filtrados["fecha_entrega"].dt.year.isin(anios)
+if suppliers:
+    filtered = filtered[filtered["proveedor"].isin(suppliers)]
+if countries:
+    filtered = filtered[filtered["pais"].isin(countries)]
+if years:
+    filtered = filtered[filtered["fecha_entrega"].dt.year.isin(years)]
+
+if late_only:
+    filtered = filtered.loc[
+        filtered["evaluable"].fillna(False)
+        & filtered["puntual"].eq(False).fillna(False)
     ]
 
-if solo_tardios:
-    filtrados = filtrados.loc[
-        filtrados["evaluable"].fillna(False)
-        & filtrados["puntual"].eq(False).fillna(False)
-    ]
-
-if filtrados.empty:
-    st.info("No hay envíos para esta combinación de filtros.")
+if filtered.empty:
+    st.info("No shipments match the selected filters.")
     st.stop()
 
-evaluables = filtrados.loc[
-    filtrados["evaluable"].fillna(False)
-].copy()
+eligible = filtered.loc[filtered["evaluable"].fillna(False)].copy()
 
-total = len(filtrados)
-cantidad_evaluable = len(evaluables)
-pendientes = total - cantidad_evaluable
-puntuales = int(evaluables["puntual"].sum())
-tardios = cantidad_evaluable - puntuales
+selected_count = len(filtered)
+eligible_count = len(eligible)
+pending_count = selected_count - eligible_count
+on_time_count = int(eligible["puntual"].sum())
+late_count = eligible_count - on_time_count
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Envíos seleccionados", f"{total:,}")
-c2.metric("Envíos evaluables", f"{cantidad_evaluable:,}")
-c3.metric("Envíos tardíos", f"{tardios:,}")
-c4.metric(
-    "Puntualidad",
-    f"{100 * puntuales / cantidad_evaluable:.2f}%"
-    if cantidad_evaluable else "Sin datos",
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Selected shipments", f"{selected_count:,}")
+col2.metric("Eligible shipments", f"{eligible_count:,}")
+col3.metric("Late shipments", f"{late_count:,}")
+col4.metric(
+    "On-time delivery rate",
+    f"{100 * on_time_count / eligible_count:.2f}%"
+    if eligible_count else "No data",
 )
 
 st.caption(
-    f"Pendientes de revisión: {pendientes:,}. "
-    "Se excluyen del cálculo de puntualidad."
+    f"Pending data review: {pending_count:,}. "
+    "These shipments are excluded from on-time delivery calculations."
 )
 
-with st.expander("Cómo interpretar los indicadores"):
+with st.expander("How to interpret these indicators"):
     st.write(
-        "Un envío es puntual si llega en la fecha programada o antes. "
-        "La puntualidad es el porcentaje de envíos puntuales entre "
-        "los envíos evaluables."
+        "A shipment is on time when it arrives on or before the scheduled "
+        "delivery date. The on-time delivery rate is the share of eligible "
+        "shipments delivered on time."
     )
     st.write(
-        "Los envíos con fechas programadas conflictivas quedan "
-        "pendientes de revisión. Cada referencia de envío se cuenta una vez."
+        "Shipments with conflicting scheduled delivery dates are flagged "
+        "for review. Each shipment reference is counted only once."
     )
     st.write(
-        "Los retrasos pueden depender del transporte, el destino y otros "
-        "factores. Estos datos no permiten atribuir toda la responsabilidad "
-        "al proveedor ni calcular ahorros económicos."
+        "Delays may also be influenced by transportation, destination, "
+        "and other factors. These data do not establish supplier fault "
+        "or quantify cost savings."
     )
 
-if cantidad_evaluable:
-    evaluables["retraso_dias"] = (
-        evaluables["diferencia_dias"].clip(lower=0)
-    )
+if eligible_count:
+    eligible["retraso_dias"] = eligible["diferencia_dias"].clip(lower=0)
 
-    tabla = evaluables.groupby("proveedor").agg(
+    supplier_kpis = eligible.groupby("proveedor").agg(
         envios_evaluables=("referencia_envio", "size"),
         envios_puntuales=("puntual", "sum"),
     )
-    tabla["envios_tardios"] = (
-        tabla["envios_evaluables"] - tabla["envios_puntuales"]
+    supplier_kpis["envios_tardios"] = (
+        supplier_kpis["envios_evaluables"] - supplier_kpis["envios_puntuales"]
     )
-    tabla["puntualidad_pct"] = (
-        100 * tabla["envios_puntuales"] / tabla["envios_evaluables"]
+    supplier_kpis["puntualidad_pct"] = (
+        100 * supplier_kpis["envios_puntuales"]
+        / supplier_kpis["envios_evaluables"]
     )
 
-    retrasos = evaluables.loc[
-        evaluables["retraso_dias"] > 0
+    mean_late_delay = eligible.loc[
+        eligible["retraso_dias"] > 0
     ].groupby("proveedor")["retraso_dias"].mean()
 
-    tabla["retraso_promedio_tardios_dias"] = retrasos
-    tabla = tabla.sort_values("envios_evaluables", ascending=False)
-
-    st.subheader("Puntualidad de los diez proveedores con más envíos")
-    st.bar_chart(tabla.head(10)[["puntualidad_pct"]])
-    st.caption(
-        "La selección se basa en volumen de envíos. "
-        "Compara el porcentaje junto con la cantidad de observaciones."
+    supplier_kpis["retraso_promedio_tardios_dias"] = mean_late_delay
+    supplier_kpis = supplier_kpis.sort_values(
+        "envios_evaluables", ascending=False
     )
 
-    st.subheader("Indicadores por proveedor")
-    st.dataframe(tabla.round(2))
+    st.subheader("On-time delivery rate: 10 suppliers with the most shipments")
+    chart_data = supplier_kpis.head(10)[["puntualidad_pct"]].rename(
+        columns=KPI_COLUMNS
+    )
+    chart_data.index.name = "Supplier"
+    st.bar_chart(chart_data)
+    st.caption(
+        "Suppliers are selected by shipment volume. Consider each "
+        "percentage alongside the number of observations."
+    )
+
+    st.subheader("Supplier performance indicators")
+    displayed_kpis = supplier_kpis.rename(columns=KPI_COLUMNS)
+    displayed_kpis.index.name = "Supplier"
+    st.dataframe(displayed_kpis.round(2))
 
     st.download_button(
-        "Descargar indicadores en CSV",
-        data=tabla.reset_index().to_csv(index=False).encode("utf-8-sig"),
-        file_name="indicadores_filtrados.csv",
+        "Download supplier indicators (CSV)",
+        data=displayed_kpis.reset_index().to_csv(index=False).encode("utf-8-sig"),
+        file_name="supplier_performance_indicators.csv",
         mime="text/csv",
     )
 else:
-    st.info("Todos los envíos seleccionados están pendientes de revisión.")
+    st.info("All selected shipments are pending data review.")
 
-st.subheader("Detalle de los envíos seleccionados")
-st.dataframe(filtrados)
+st.subheader("Selected shipment details")
+displayed_shipments = filtered.rename(columns=DISPLAY_COLUMNS)
+st.dataframe(displayed_shipments)
 
 st.download_button(
-    "Descargar envíos seleccionados",
-    data=filtrados.to_csv(index=False).encode("utf-8-sig"),
-    file_name="envios_filtrados.csv",
+    "Download selected shipments (CSV)",
+    data=displayed_shipments.to_csv(index=False).encode("utf-8-sig"),
+    file_name="selected_shipments.csv",
     mime="text/csv",
 )
